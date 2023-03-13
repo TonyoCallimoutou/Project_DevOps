@@ -1,0 +1,30 @@
+---
+
+# Copy file
+- name: Create a directory if it does not exist
+  ansible.builtin.file:
+    path: /home/vagrant/projet/docker
+    state: directory
+    mode: '0755'
+
+- name: Copy docker-compose.yml
+  copy:
+    src: ../../../uat/docker-compose.yml
+    dest: /home/vagrant/projet/docker/docker-compose.yml
+
+
+- name: Copy .env for Docker compose
+  copy:
+    src: ../../../.env
+    dest: /home/vagrant/projet/docker/.env
+
+- name: Copy jenkinsfile for Docker compose
+  copy:
+    src: ../../../Jenkinsfile
+    dest: /home/vagrant/projet/docker/Jenkinsfile
+
+# RUN Docker
+- name: Run docker-compose
+  shell: 
+    cmd: "sudo docker-compose up -d"
+    chdir: /home/vagrant/projet/docker

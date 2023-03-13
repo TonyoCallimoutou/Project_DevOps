@@ -1,0 +1,22 @@
+version: "3"
+networks:
+  my_network:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${IP_SUBNET}
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - ./Jenkinsfile:/app/Jenkinsfile
+    ports:
+      - ${PORT_JENKINS}:8080
+      - 50000:50000
+    networks:
+      - my_network
+
+volumes:
+  jenkins-data:
