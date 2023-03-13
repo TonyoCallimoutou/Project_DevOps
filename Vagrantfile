@@ -4,16 +4,6 @@
 require 'dotenv'
 Dotenv.load('.env')
 
-machines=[
-  {
-    :hostname => "machine1",
-    :ip => ENV["IP_VM"],
-    :box => "hashicorp/bionic64",
-    :ram => 2048,
-    :cpu => 2
-  }
-]
-
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
@@ -26,35 +16,67 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  machines.each do |machine|
-    config.vm.define machine[:hostname] do |node|
-      node.vm.box = machine[:box]
-      node.vm.hostname = machine[:hostname]
-      node.vm.network "private_network", ip: machine[:ip]
-      node.vm.network "forwarded_port", guest: ENV["PORT_WEB"], host: ENV["PORT_WEB"]
-      node.vm.network "forwarded_port", guest: ENV["PORT_PMA"], host: ENV["PORT_PMA"]
 
-      node.vm.provider "virtualbox" do |vb|
-        vb.gui = false
-        vb.memory = machine[:ram]
-        vb.cpus = machine[:cpu]
-      end
+  config.vm.define :uat do |uat|
 
-      config.vm.provision "shell", inline: <<-SHELL
-        echo 'export PORT_WEB='#{ENV['PORT_WEB']}'' | sudo tee -a /etc/environment
-        echo 'export PORT_PMA='#{ENV['PORT_PMA']}'' | sudo tee -a /etc/environment
-        echo 'export MYSQL_ROOT_PASSWORD='#{ENV['MYSQL_ROOT_PASSWORD']}'' | sudo tee -a /etc/environment
-        echo 'export MYSQL_DATABASE='#{ENV['MYSQL_DATABASE']}'' | sudo tee -a /etc/environment
-        echo 'export MYSQL_USER='#{ENV['MYSQL_USER']}'' | sudo tee -a /etc/environment
-        echo 'export MYSQL_PASSWORD='#{ENV['MYSQL_PASSWORD']}'' | sudo tee -a /etc/environment
-      SHELL
+    uat.vm.box = "hashicorp/bionic64"
+    uat.vm.hostname = "prod"
+    uat.vm.network "private_network", ip: ENV["IP_UAT"]
+    uat.vm.network "forwarded_port", guest: ENV["PORT_JENKINS"], host: ENV["PORT_JENKINS"]
 
-      node.vm.provision "ansible" do |ansible|  
-        ansible.playbook = "./ansible/playbooks/Playbook_automation_projet.yml"
-      end
+    uat.vm.provider "virtualbox" do |vb|
+      vb.gui = false
+      vb.memory = 2048
+      vb.cpus = 2
     end
 
+
+    uat.vm.provision "shell", inline: <<-SHELL
+      echo 'export PORT_JENKINS='#{ENV['PORT_JENKINS']}'' | sudo tee -a /etc/environment
+    SHELL
+
+    uat.vm.provision "ansible" do |ansible|  
+      ansible.playbook = "./ansible/playbooks/Playbook_uat.yml"
+    end
   end
+
+  config.vm.define :prod do |prod|
+
+    prod.vm.box = "hashicorp/bionic64"
+    prod.vm.hostname = "dev"
+    prod.vm.network "private_network", ip: ENV["IP_PROD"]
+    prod.vm.network "forwarded_port", guest: ENV["PORT_WEB"], host: ENV["PORT_WEB"]
+    prod.vm.network "forwarded_port", guest: ENV["PORT_PMA"], host: ENV["PORT_PMA"]
+
+    prod.vm.provider "virtualbox" do |vb|
+      vb.gui = false
+      vb.memory = 2048
+      vb.cpus = 2
+    end
+
+    prod.vm.provision "shell", inline: <<-SHELL
+      echo 'export PORT_WEB='#{ENV['PORT_WEB']}'' | sudo tee -a /etc/environment
+      echo 'export PORT_PMA='#{ENV['PORT_PMA']}'' | sudo tee -a /etc/environment
+      echo 'export MYSQL_ROOT_PASSWORD='#{ENV['MYSQL_ROOT_PASSWORD']}'' | sudo tee -a /etc/environment
+      echo 'export MYSQL_DATABASE='#{ENV['MYSQL_DATABASE']}'' | sudo tee -a /etc/environment
+      echo 'export MYSQL_USER='#{ENV['MYSQL_USER']}'' | sudo tee -a /etc/environment
+      echo 'export MYSQL_PASSWORD='#{ENV['MYSQL_PASSWORD']}'' | sudo tee -a /etc/environment
+    SHELL
+
+    prod.vm.provision "ansible" do |ansible|  
+      ansible.playbook = "./ansible/playbooks/Playbook_automation_projet.yml"
+    end
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    echo 'vagrant:vagrant' | chpasswd
+    mkdir -p /home/vagrant/.ssh
+    chmod 0700 /home/vagrant/.ssh
+    ssh-keygen -t rsa -f /home/vagrant/.ssh/id_rsa -N ''
+    cat /home/vagrant/.ssh/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+    chmod 0600 /home/vagrant/.ssh/authorized_keys
+    chown -R vagrant:vagrant /home/vagrant/.ssh
+  SHELL
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
